@@ -2,27 +2,62 @@
 
 AgentGit is a local-first Git companion for AI coding agents.
 
-It does **not** replace Git. It adds an agent-aware layer on top of your repo so you can track:
+It adds an agent-aware tracking layer on top of your repository without replacing Git.
 
-- the prompt or task given to an agent
-- the agent name/model
-- before/after file snapshots
-- generated diffs
-- local task history
-- searchable changelogs and history
-- safe task-level revert
+## Why AgentGit
 
-AgentGit works with any agent because it supports manual tracking, command wrapping, MCP tools, and a VS Code UI.
+AI agents move fast, but project memory gets messy. AgentGit helps you answer:
+- What was asked?
+- Which files changed?
+- Can we safely roll it back?
 
-## Description
+## Core Features
 
-AgentGit provides task/session tracking, before-after snapshots, diffs, flow timeline visualization, searchable history, and safe preview-based reverts with CLI, MCP, and VS Code integration.
+- Task/session tracking with prompt, agent name, and model metadata
+- Before/after snapshots and generated patch diffs
+- Searchable local history and changelog export
+- Flow lineage for follow-up and branched tasks
+- Preview-first, safety-checked reverts
+- Works with any agent via CLI, MCP, and VS Code extension
 
-## License
+## Quick Start
 
-This project is licensed under the MIT License. See [LICENSE](./LICENSE).
+### 1. Install
 
-## What gets created in your project
+```bash
+npm ci --omit=dev
+npm link
+```
+
+### 2. Initialize in your project
+
+```bash
+agentgit init
+```
+
+### 3. One-command MCP setup
+
+Claude:
+
+```bash
+agentgit init --with-mcp --client claude
+agentgit mcp doctor --client claude
+```
+
+Codex:
+
+```bash
+agentgit init --with-mcp --client codex
+agentgit mcp doctor --client codex
+```
+
+Generic MCP config output:
+
+```bash
+agentgit mcp setup --client generic
+```
+
+## What AgentGit Creates
 
 ```txt
 .agentgit/
@@ -32,163 +67,93 @@ This project is licensed under the MIT License. See [LICENSE](./LICENSE).
   snapshots/
 ```
 
-Keep `.agentgit/` local. Do not commit it unless you intentionally want to share agent work history.
+Keep `.agentgit/` local unless you intentionally want to share agent history.
 
-## Install locally as a CLI
-
-From this folder:
+## Daily CLI Workflow
 
 ```bash
-npm link
-```
-
-Then in any repo:
-
-```bash
-agentgit init --with-mcp --client claude
-```
-
-Or run them separately:
-
-```bash
-agentgit init
-agentgit mcp setup --client claude
-```
-
-You can also use it without linking:
-
-```bash
-node /path/to/agentgit/src/cli.js init
-```
-
-## Manual workflow
-
-```bash
-agentgit init
 agentgit start "Fix login redirect after token refresh" --agent claude --model sonnet
-# Ask your coding agent to make changes.
+# make changes
 agentgit stop --summary "Updated auth guard and session redirect handling"
 agentgit log
 agentgit diff <session-id-prefix>
 ```
 
-## Wrap any CLI agent
-
-This tracks before/after snapshots around any command:
+## Wrap Any Agent CLI
 
 ```bash
-agentgit run "Fix login redirect" --agent codex -- codex
-```
-
-Examples:
-
-```bash
-agentgit run "Refactor session DTOs" --agent claude -- claude
 agentgit run "Fix failing tests" --agent aider -- aider
-agentgit run "Update API gateway error handling" --agent custom-agent -- my-agent-cli
+agentgit run "Refactor session DTOs" --agent claude -- claude
+agentgit run "Fix API error handling" --agent custom-agent -- my-agent-cli
 ```
 
-## Search history
+## Search, Compare, and PR Draft
 
 ```bash
 agentgit search "auth redirect claude"
-agentgit search "docker healthcheck"
-agentgit search "session dto"
+agentgit compare <left-session-id> <right-session-id>
+agentgit pr-draft <session-id-prefix>
+agentgit export --out AGENT_CHANGELOG.md
 ```
 
-## Flow and branch visualization
-
-AgentGit can now connect related tasks into the same flow and render lineage in a tree view.
-
-Start with explicit continuation metadata when needed:
+## Flow Tracking
 
 ```bash
 agentgit start "Continue auth fix" --agent codex --continue <session-id-prefix> --branch hotfix-auth
-```
-
-Or let auto-linking connect recent similar prompts in the same flow:
-
-```bash
-agentgit start "continue auth redirect edge cases" --agent codex
-```
-
-Inspect flows:
-
-```bash
 agentgit flow list --limit 20
 agentgit flow show <flow-id-prefix>
 agentgit flow graph <flow-id-prefix>
 ```
 
-`flow graph` prints a tree-like branch structure so follow-up prompts are easier to trace.
-
-## Preview and apply a revert
+## Safe Revert Workflow
 
 Preview first:
 
 ```bash
 agentgit revert <session-id-prefix> --preview
-agentgit revert <session-id-prefix> --apply --preview-token <token>
-agentgit compare <left-session-id> <right-session-id>
-agentgit pr-draft <session-id-prefix>
-agentgit verify
-agentgit templates
-agentgit template-add bugfix --prompt "Fix bug in <area>" --tags hotfix
 ```
 
-Apply only if clean and with preview token:
+Apply with preview token:
 
 ```bash
-agentgit revert <session-id-prefix> --preview
-# copy Preview token from output
 agentgit revert <session-id-prefix> --apply --preview-token <token>
 ```
 
-AgentGit will refuse a clean revert if the current file content no longer matches what the agent originally produced. This prevents accidental overwrites.
-
-Force is available, but use it carefully:
+Force only when you understand overwrite risk:
 
 ```bash
 agentgit revert <session-id-prefix> --apply --force
 ```
 
-## Export changelog
+## MCP Integration
+
+### Supported Clients
+
+- Claude Code
+- Codex
+- Any MCP-compatible client
+
+### MCP Setup Commands
 
 ```bash
-agentgit export --out AGENT_CHANGELOG.md
+agentgit mcp setup --client claude
+agentgit mcp setup --client codex
+agentgit mcp setup --client generic
 ```
 
+Options:
+- `--name <server-name>` default: `agentgit`
+- `--absolute` uses `node /absolute/path/to/src/mcp-server.mjs` instead of `agentgit-mcp`
 
-## MCP server mode
-
-AgentGit can also run as a local MCP server, so coding agents can start/stop tracking themselves through tools instead of asking the user to run `agentgit start` and `agentgit stop` manually.
-
-Install dependencies first:
+### MCP Doctor
 
 ```bash
-npm ci --omit=dev
-npm link
+agentgit mcp doctor
+agentgit mcp doctor --client claude
+agentgit mcp doctor --client codex
 ```
 
-Run the included smoke test:
-
-```bash
-npm run smoke
-```
-
-Start the MCP server directly:
-
-```bash
-agentgit-mcp
-```
-
-Or without linking:
-
-```bash
-node /absolute/path/to/agentgit/src/mcp-server.mjs
-```
-
-### MCP tools exposed
+### Exposed MCP Tools
 
 - `agentgit_init`
 - `agentgit_start_task`
@@ -207,113 +172,15 @@ node /absolute/path/to/agentgit/src/mcp-server.mjs
 - `agentgit_list_templates`
 - `agentgit_save_template`
 
-These are MCP tool names (called by an MCP client), not built-in shell commands by default.
-If you want shell commands with the same names, run `npm link` first, then use:
+## VS Code Extension
+
+Run extension dev host:
 
 ```bash
-agentgit_start_task --prompt "Fix login redirect" --agent codex
-agentgit_stop_task --summary "Implemented redirect fix"
+npm run dev
 ```
 
-`agentgit_start_task` also supports flow continuity fields:
-
-- `continueFromSessionId`
-- `flowId`
-- `branchName`
-- `autoLink`
-
-The intended agent workflow is:
-
-```txt
-1. Before editing files, call agentgit_start_task.
-2. Make the code changes normally.
-3. Run checks/tests if needed.
-4. After finishing, call agentgit_stop_task with a short summary.
-5. When reverting older agent work, search first, preview the revert, then apply only if clean.
-```
-
-This removes the manual start/stop burden from the user. The agent does the tracking calls automatically as part of its tool workflow.
-
-### Claude Code setup
-
-Fast path (recommended):
-
-```bash
-agentgit init --with-mcp --client claude
-agentgit mcp doctor --client claude
-```
-
-Manual path after `npm link`, add the server:
-
-```bash
-claude mcp add-json agentgit '{"type":"stdio","command":"agentgit-mcp","args":[]}'
-```
-
-For a project-local setup without `npm link`, use an absolute path:
-
-```bash
-claude mcp add-json agentgit '{"type":"stdio","command":"node","args":["/absolute/path/to/agentgit/src/mcp-server.mjs"]}'
-```
-
-Then tell Claude Code:
-
-```txt
-For every coding task in this repo, use AgentGit: call agentgit_start_task before edits and agentgit_stop_task after edits.
-```
-
-### Codex setup
-
-Fast path (recommended):
-
-```bash
-agentgit init --with-mcp --client codex
-agentgit mcp doctor --client codex
-```
-
-Manual path: add this to `~/.codex/config.toml` or `.codex/config.toml` inside a trusted project:
-
-```toml
-[mcp_servers.agentgit]
-command = "agentgit-mcp"
-args = []
-```
-
-Or use a direct path:
-
-```toml
-[mcp_servers.agentgit]
-command = "node"
-args = ["/absolute/path/to/agentgit/src/mcp-server.mjs"]
-```
-
-Then instruct Codex:
-
-```txt
-Use the AgentGit MCP tools to track this task. Start tracking before file edits and stop tracking with a summary after edits.
-```
-
-### Generic MCP client config
-
-Most MCP clients accept a stdio config like this:
-
-```json
-{
-  "mcpServers": {
-    "agentgit": {
-      "type": "stdio",
-      "command": "agentgit-mcp",
-      "args": []
-    }
-  }
-}
-```
-
-## VS Code extension usage
-
-Open this folder in VS Code and press `F5` to launch an Extension Development Host.
-
-Commands:
-
+Main commands:
 - `AgentGit: Initialize Repository`
 - `AgentGit: Start Tracking Agent Task`
 - `AgentGit: Stop Tracking Agent Task`
@@ -323,65 +190,18 @@ Commands:
 - `AgentGit: Apply Revert`
 - `AgentGit: Refresh Flow Graph`
 
-The extension adds an **AgentGit** activity bar view with:
-
-- **Agent Timeline** tree for session history and file-level changes
-- **Flow Graph** tree for parent-child branching lineage across related sessions
-
-## Packaging the VS Code extension
-
-Install packaging dependency if needed:
-
-```bash
-npm install
-npm run package
-```
-
-This creates a `.vsix` file that can be installed manually in VS Code.
-
 ## Validation
 
-This package includes a smoke test that verifies:
-
-- CLI init/start/stop/log/search/diff/revert
-- created, modified, and deleted file restoration
-- dirty-file conflict protection
-- MCP `tools/list` and MCP tool calls for start/stop/search/preview/apply
-
-Run it after installing dependencies:
-
 ```bash
-npm ci --omit=dev
 npm run smoke
 ```
 
-## Design limits in this MVP
+## Troubleshooting
 
-This MVP intentionally avoids native dependencies and databases.
+- `.agentgit/` exists but MCP tools are missing: MCP server is not connected yet. Run `agentgit mcp setup --client <claude|codex>` and restart your client.
+- `agentgit-mcp` not found: run `npm link` in this repo, or use `--absolute` mode.
+- MCP still not visible: run `agentgit mcp doctor` and verify your client session was restarted.
 
-Current limitations:
+## License
 
-- uses JSON ledger instead of SQLite
-- task-level restore, not hunk-level restore
-- MCP tools are available, but each agent still needs an instruction/rule to call start/stop around edits
-- no semantic embeddings yet
-- files larger than 2 MB are skipped
-- binary files are tracked and restorable, but diff output is summary-only
-
-## Recommended next versions
-
-1. SQLite ledger
-2. Claude Code hooks adapter
-3. agent-specific rules/templates for automatic MCP start/stop
-4. local semantic search
-5. hunk-level revert
-6. test-command capture
-7. team-shared encrypted ledger export
-
-## Suggested `.gitignore`
-
-Add this to your project `.gitignore`:
-
-```gitignore
-.agentgit/
-```
+MIT License. See [LICENSE](./LICENSE).
