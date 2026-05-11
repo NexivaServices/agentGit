@@ -57,7 +57,7 @@ function help() {
   console.log(`AgentGit MVP - local agent work ledger
 
 Usage:
-  agentgit init
+  agentgit init [--with-mcp] [--client claude|codex|generic] [--name agentgit] [--absolute]
   agentgit mcp setup --client claude|codex|generic [--name agentgit] [--absolute]
   agentgit mcp doctor [--client claude|codex|generic] [--name agentgit]
   agentgit start "Fix auth redirect" --agent claude --model sonnet
@@ -342,6 +342,9 @@ function main() {
       case 'init': {
         const result = initRepo(cwd);
         console.log(`AgentGit initialized at ${result.agentgitDir}`);
+        if (flags['with-mcp']) {
+          runMcpSetup({ cwd, flags, positional: ['setup'] });
+        }
         break;
       }
       case 'mcp': {

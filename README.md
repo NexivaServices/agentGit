@@ -45,6 +45,12 @@ npm link
 Then in any repo:
 
 ```bash
+agentgit init --with-mcp --client claude
+```
+
+Or run them separately:
+
+```bash
 agentgit init
 agentgit mcp setup --client claude
 ```
@@ -233,7 +239,7 @@ This removes the manual start/stop burden from the user. The agent does the trac
 Fast path (recommended):
 
 ```bash
-agentgit mcp setup --client claude
+agentgit init --with-mcp --client claude
 agentgit mcp doctor --client claude
 ```
 
@@ -260,7 +266,7 @@ For every coding task in this repo, use AgentGit: call agentgit_start_task befor
 Fast path (recommended):
 
 ```bash
-agentgit mcp setup --client codex
+agentgit init --with-mcp --client codex
 agentgit mcp doctor --client codex
 ```
 
