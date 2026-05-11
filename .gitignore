@@ -1,6 +1,4 @@
 node_modules/
+*.vsix
 .agentgit/
-.vscode/
-*.log
-*.tmp
 .DS_Store

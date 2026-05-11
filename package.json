@@ -1,10 +1,9 @@
 {
   "name": "agentgit",
   "displayName": "AgentGit",
-  "version": "0.1.0",
-  "private": true,
-  "description": "Local-first Git companion for AI coding agents with task tracking, snapshots, diffs, safe reverts, and MCP/VS Code integration.",
-  "license": "MIT",
+  "description": "Local-first Git companion for AI coding agents with tracking, snapshots, diffs, safe reverts, and MCP/VS Code integration.",
+  "version": "0.2.8",
+  "publisher": "nexiva",
   "repository": {
     "type": "git",
     "url": "https://github.com/NexivaServices/agentGit.git"
@@ -12,5 +11,120 @@
   "homepage": "https://github.com/NexivaServices/agentGit",
   "bugs": {
     "url": "https://github.com/NexivaServices/agentGit/issues"
+  },
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other",
+    "SCM Providers"
+  ],
+  "main": "./src/extension.js",
+  "bin": {
+    "agentgit": "./src/cli.js",
+    "agentgit_start_task": "./src/start-task.js",
+    "agentgit_stop_task": "./src/stop-task.js",
+    "agentgit_mcp": "./src/mcp-server.mjs",
+    "agentgit-mcp": "./src/mcp-server.mjs"
+  },
+  "scripts": {
+    "agentgit": "node ./src/cli.js",
+    "dev": "code --extensionDevelopmentPath=.",
+    "package": "npx @vscode/vsce package --no-dependencies",
+    "mcp": "node ./src/mcp-server.mjs",
+    "smoke": "node ./scripts/smoke-test.js"
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "agentgit.init",
+        "title": "AgentGit: Initialize Repository"
+      },
+      {
+        "command": "agentgit.startTracking",
+        "title": "AgentGit: Start Tracking Agent Task"
+      },
+      {
+        "command": "agentgit.stopTracking",
+        "title": "AgentGit: Stop Tracking Agent Task"
+      },
+      {
+        "command": "agentgit.showTimeline",
+        "title": "AgentGit: Refresh Timeline"
+      },
+      {
+        "command": "agentgit.showFlowGraph",
+        "title": "AgentGit: Refresh Flow Graph"
+      },
+      {
+        "command": "agentgit.search",
+        "title": "AgentGit: Search Agent History"
+      },
+      {
+        "command": "agentgit.showDiff",
+        "title": "AgentGit: Show Diff"
+      },
+      {
+        "command": "agentgit.previewRevert",
+        "title": "AgentGit: Preview Revert"
+      },
+      {
+        "command": "agentgit.applyRevert",
+        "title": "AgentGit: Apply Revert"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "agentgit",
+          "title": "AgentGit",
+          "icon": "resources/agentgit.svg"
+        }
+      ]
+    },
+    "views": {
+      "agentgit": [
+        {
+          "id": "agentgit.timeline",
+          "name": "Agent Timeline"
+        },
+        {
+          "id": "agentgit.flowGraph",
+          "name": "Flow Graph"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "agentgit.showTimeline",
+          "when": "view == agentgit.timeline",
+          "group": "navigation"
+        },
+        {
+          "command": "agentgit.startTracking",
+          "when": "view == agentgit.timeline",
+          "group": "navigation"
+        },
+        {
+          "command": "agentgit.stopTracking",
+          "when": "view == agentgit.timeline",
+          "group": "navigation"
+        },
+        {
+          "command": "agentgit.showFlowGraph",
+          "when": "view == agentgit.flowGraph",
+          "group": "navigation"
+        }
+      ]
+    }
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^3.2.1"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.21.0",
+    "zod": "^3.25.0"
   }
 }
