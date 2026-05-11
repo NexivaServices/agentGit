@@ -46,6 +46,7 @@ Then in any repo:
 
 ```bash
 agentgit init
+agentgit mcp setup --client claude
 ```
 
 You can also use it without linking:
@@ -229,7 +230,14 @@ This removes the manual start/stop burden from the user. The agent does the trac
 
 ### Claude Code setup
 
-After `npm link`, add the server:
+Fast path (recommended):
+
+```bash
+agentgit mcp setup --client claude
+agentgit mcp doctor --client claude
+```
+
+Manual path after `npm link`, add the server:
 
 ```bash
 claude mcp add-json agentgit '{"type":"stdio","command":"agentgit-mcp","args":[]}'
@@ -249,7 +257,14 @@ For every coding task in this repo, use AgentGit: call agentgit_start_task befor
 
 ### Codex setup
 
-Add this to `~/.codex/config.toml` or `.codex/config.toml` inside a trusted project:
+Fast path (recommended):
+
+```bash
+agentgit mcp setup --client codex
+agentgit mcp doctor --client codex
+```
+
+Manual path: add this to `~/.codex/config.toml` or `.codex/config.toml` inside a trusted project:
 
 ```toml
 [mcp_servers.agentgit]

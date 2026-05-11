@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const { spawnSync } = require('child_process');
 const {
   initRepo,
@@ -57,6 +58,8 @@ function help() {
 
 Usage:
   agentgit init
+  agentgit mcp setup --client claude|codex|generic [--name agentgit] [--absolute]
+  agentgit mcp doctor [--client claude|codex|generic] [--name agentgit]
   agentgit start "Fix auth redirect" --agent claude --model sonnet
     --continue <session-id-prefix> --branch feature-a --reuse-active
   agentgit stop --summary "Fixed auth redirect and updated tests"
@@ -88,6 +91,161 @@ Notes:
   - Clean reverts are only applied when current files still match the tracked agent output.
   - Revert apply requires a fresh preview token from the preview command.
 `);
+}
+
+function commandExists(command) {
+  const probe = process.platform === 'win32' ? 'where' : 'which';
+  const result = spawnSync(probe, [command], { encoding: 'utf8', shell: false });
+  return result.status === 0;
+}
+
+function buildMcpSpec(flags = {}) {
+  const absolute = Boolean(flags.absolute);
+  if (absolute) {
+    return {
+      type: 'stdio',
+      command: 'node',
+      args: [path.resolve(__dirname, 'mcp-server.mjs')]
+    };
+  }
+  return {
+    type: 'stdio',
+    command: 'agentgit-mcp',
+    args: []
+  };
+}
+
+function runClaudeMcpSetup({ name, spec }) {
+  if (!commandExists('claude')) {
+    throw new Error('Claude CLI was not found in PATH. Install Claude Code CLI or use --client generic.');
+  }
+  const result = spawnSync('claude', ['mcp', 'add-json', name, JSON.stringify(spec)], {
+    stdio: 'inherit',
+    shell: process.platform === 'win32'
+  });
+  if (result.status !== 0) {
+    throw new Error('Failed to register MCP server with Claude CLI.');
+  }
+  console.log(`Claude MCP server "${name}" configured.`);
+}
+
+function codexConfigPaths(cwd) {
+  return [
+    path.join(cwd, '.codex', 'config.toml'),
+    path.join(os.homedir(), '.codex', 'config.toml')
+  ];
+}
+
+function ensureCodexConfigEntry({ cwd, name, spec }) {
+  const paths = codexConfigPaths(cwd);
+  const target = paths[0];
+  const dir = path.dirname(target);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+  let existing = '';
+  if (fs.existsSync(target)) existing = fs.readFileSync(target, 'utf8');
+  const blockHeader = `[mcp_servers.${name}]`;
+  if (existing.includes(blockHeader)) {
+    console.log(`Codex config already contains ${blockHeader} in ${target}`);
+    return target;
+  }
+  const block = `${existing.trim() ? `${existing.trim()}\n\n` : ''}${blockHeader}
+command = ${JSON.stringify(spec.command)}
+args = ${JSON.stringify(spec.args)}
+`;
+  fs.writeFileSync(target, block, 'utf8');
+  console.log(`Codex MCP config written to ${target}`);
+  return target;
+}
+
+function runMcpSetup({ cwd, flags, positional }) {
+  const client = String(flags.client || positional[1] || 'claude').toLowerCase();
+  const name = String(flags.name || 'agentgit');
+  const spec = buildMcpSpec(flags);
+
+  if (!['claude', 'codex', 'generic'].includes(client)) {
+    throw new Error('Usage: agentgit mcp setup --client claude|codex|generic [--name agentgit] [--absolute]');
+  }
+
+  if (client === 'claude') {
+    runClaudeMcpSetup({ name, spec });
+    console.log('Restart Claude Code session so new MCP tools are loaded.');
+    return;
+  }
+  if (client === 'codex') {
+    const file = ensureCodexConfigEntry({ cwd, name, spec });
+    console.log('Restart Codex session after config update.');
+    console.log(`Config file: ${file}`);
+    return;
+  }
+  console.log(JSON.stringify({
+    name,
+    config: spec
+  }, null, 2));
+}
+
+function runMcpDoctor({ cwd, flags }) {
+  const requested = String(flags.client || 'all').toLowerCase();
+  const name = String(flags.name || 'agentgit');
+  const checks = [];
+
+  checks.push({
+    check: 'agentgit-mcp executable in PATH',
+    ok: commandExists('agentgit-mcp')
+  });
+
+  if (requested === 'all' || requested === 'claude') {
+    if (commandExists('claude')) {
+      const result = spawnSync('claude', ['mcp', 'list'], { encoding: 'utf8', shell: process.platform === 'win32' });
+      const output = `${result.stdout || ''}\n${result.stderr || ''}`;
+      checks.push({
+        check: 'claude CLI available',
+        ok: true
+      });
+      checks.push({
+        check: `claude MCP server "${name}" registered`,
+        ok: output.toLowerCase().includes(name.toLowerCase())
+      });
+    } else {
+      checks.push({
+        check: 'claude CLI available',
+        ok: false
+      });
+    }
+  }
+
+  if (requested === 'all' || requested === 'codex') {
+    const paths = codexConfigPaths(cwd);
+    let found = false;
+    let where = '';
+    for (const p of paths) {
+      if (!fs.existsSync(p)) continue;
+      const content = fs.readFileSync(p, 'utf8');
+      if (content.includes(`[mcp_servers.${name}]`)) {
+        found = true;
+        where = p;
+        break;
+      }
+    }
+    checks.push({
+      check: `codex MCP server "${name}" configured`,
+      ok: found,
+      detail: where || `${paths[0]} or ${paths[1]}`
+    });
+  }
+
+  let failed = 0;
+  for (const item of checks) {
+    const label = item.ok ? 'OK ' : 'WARN';
+    console.log(`${label} ${item.check}${item.detail ? ` (${item.detail})` : ''}`);
+    if (!item.ok) failed += 1;
+  }
+  if (failed > 0) {
+    process.exitCode = 1;
+    console.log('Some MCP checks failed. Run `agentgit mcp setup --client <claude|codex>` and restart your client.');
+  } else {
+    console.log('MCP setup looks good.');
+  }
 }
 
 function printSessions(sessions) {
@@ -185,6 +343,18 @@ function main() {
         const result = initRepo(cwd);
         console.log(`AgentGit initialized at ${result.agentgitDir}`);
         break;
+      }
+      case 'mcp': {
+        const sub = String(positional[0] || 'doctor').toLowerCase();
+        if (sub === 'setup') {
+          runMcpSetup({ cwd, flags, positional });
+          break;
+        }
+        if (sub === 'doctor') {
+          runMcpDoctor({ cwd, flags });
+          break;
+        }
+        throw new Error('Usage: agentgit mcp <setup|doctor> [--client claude|codex|generic] [--name agentgit] [--absolute]');
       }
 
       case 'start': {
